@@ -7,8 +7,7 @@ output: github_document
 
 ```{r setup, include = FALSE}
 library(tidyverse)
-library(p8105.datasets)
-library(ggplot2)
+library(readxl)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -24,4 +23,79 @@ scale_colour_discrete = scale_color_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 
 ```
+
+## Introduction 
+
+## Problem 1 
+First we will import and clean the data. We will fill in missing values for eop_size_mm with 0s, and convert categorical variables into character and ordered factors. 
+
+```{r}
+nature_data = read_excel("./data/p8105_mtp_data.xlsx", sheet = "this one", skip = 8) %>%
+  janitor::clean_names() %>% 
+  mutate(sex = as.factor(sex),
+         age_group = as.factor(age_group),
+         eop_size = as.factor(eop_size), 
+         eop_shape = as.factor(eop_shape),
+         fhp_category = as.factor(fhp_category))
+
+nature_data[["eop_size_mm"]][is.na(nature_data[["eop_size_mm"]])] <- 0 
+
+nature_data %>% 
+  mutate(age_group = recode(age_group,
+                            `1` = "<18 yrs",
+                            `2` = "18-30 yrs", 
+                            `3` = "31-40 yrs",
+                            `4` = "41-50 yrs",
+                            `5` = "51-60 yrs",
+                            `6` = "61-70 yrs",
+                            `7` = "71-80 yrs",
+                            `8` = "81-90 yrs")) %>%
+  mutate(sex = recode(sex, 
+                      `0` = "female",
+                      `1` = "male")) %>% 
+  group_by(age_group, sex) %>%
+  summarize(n_obs = n()) %>%
+pivot_wider(
+  names_from = age_group,
+  values_from = n_obs
+) 
+
+#check the recoding
+```
+
+Key variables in the dataset include sex and age, EOP size, EOP visibility classification, EOP shape and FHP size. There are `r nrow(nature_data)`participants included in the dataset. The largest age group is 18-30 years old, and the smallest age groups are < 18 years and 81-90 years. There are roughly equal number of males and females in each age group, and the number of individuals in each group is similar for the age groups between 31-80 years of age.  
+
+Let's check to see that the categorical variables were correctly assigned. 
+
+```{r}
+
+nature_data_check = nature_data %>% 
+  mutate(correct_age_category = 
+           case_when(age < 18 ~ 1,
+                     age >= 18 & age <= 30 ~ 2, 
+                     age >= 31 & age <= 40 ~ 3, 
+                     age >= 41 & age <= 50 ~ 4, 
+                     age >= 51 & age <= 60 ~ 5, 
+                     age >= 61 & age <= 70 ~ 6, 
+                     age >= 71 & age <= 80 ~ 7, 
+                     age >= 81 & age <= 90 ~ 8), 
+         age_check = ifelse(correct_age_category == age_group, "correct", "incorrect"), 
+         correct_size_category = 
+           case_when(eop_size_mm < 5 ~ 0, 
+                     eop_size_mm >= 5 & eop_size_mm < 10 ~ 1, 
+                     eop_size_mm >= 10 & eop_size_mm < 15 ~ 2, 
+                     eop_size_mm >= 15 & eop_size_mm < 20 ~ 3,
+                     eop_size_mm >= 20 & eop_size_mm <= 25 ~ 4,
+                     eop_size_mm >= 25 ~ 5)
+  ) 
+
+#note to self, check age categories were made correctly 
+
+nature_data_check %>% 
+  filter(age_check == "incorrect") %>% 
+  knitr::kable()
+
+```
+
+
 
