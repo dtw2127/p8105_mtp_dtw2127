@@ -149,3 +149,16 @@ figure_4 =
 
 ```
 
+Now, we will work on creating a 2x5 panel figure which shows the association between FHP size + EOP size in each age and sex group.
+
+```{r}
+nature_data_age %>% 
+  ggplot(aes(x = fhp_size_mm, y = eop_size_mm)) +
+  geom_point(size = .3) + 
+  #geom_smooth() +
+  labs() + 
+  facet_wrap(~age_group + sex, ncol = 5)
+  
+
+```
+
