@@ -8,6 +8,8 @@ output: github_document
 ```{r setup, include = FALSE}
 library(tidyverse)
 library(readxl)
+library(ggplot2)
+library(patchwork)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -96,6 +98,54 @@ nature_data_check %>%
   knitr::kable()
 
 ```
+## Problem 2 
 
+For Figure 3, a boxplot might be more appropriate. We will re-categorize age groups 7 and 8 as 6, since we will be grouping observations from these three age groups. 
 
+```{r}
+
+nature_data_age = nature_data %>% 
+  filter(as.numeric(age_group) > 1) %>% 
+  mutate(age_group = recode(age_group, 
+                            `2` = "18-30 years", 
+                            `3` = "31-40 years",
+                            `4` = "41-50 years", 
+                            `5` = "51-60 years",
+                            `6` = "60+ years",
+                            `7` = "60+ years", 
+                            `8` = "60+ years")
+         ) 
+
+figure_3 = ggplot(nature_data_age, aes(x = age_group, y = fhp_size_mm, fill = sex)) + geom_boxplot()
+
+```
+
+For Figure 4, we'd like to look at rates of enlarged EOP, instead of numbers with enlarged EOP. 
+
+```{r}
+#figure out how many individuals are in each age + sex group 
+
+nature_data_age_n = nature_data_age %>% 
+  group_by(age_group, sex) %>% 
+  summarize(n_obs = n())
+
+nature_data_eop_n = nature_data_age %>% 
+  filter(as.numeric(eop_size) >= 3) %>%
+  group_by(age_group, sex) %>% 
+  summarize(n_obs = n())
+
+nature_data_combined = cbind(nature_data_age_n, nature_data_eop_n) %>%
+  mutate(rate = n_obs...6 * 100 / n_obs...3)
+
+figure_4 = 
+  nature_data_combined %>% 
+  ggplot(aes(x = age_group...4, y = rate)) + 
+  geom_line(aes(group = sex...2)) + 
+  geom_point() + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(x = "age group", y = "rate (# of eeops/# of individuals)")
+
+(figure_3 + figure_4)
+
+```
 
