@@ -28,8 +28,10 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ## Introduction 
 
-## Problem 1 
-First we will import and clean the data. We will fill in missing values for eop_size_mm with 0s, and convert categorical variables into character and ordered factors. 
+We examine the findings presented in the 2018 article on the relationship between posture and enlarged external occipital protuberances. We examine data consistency, results presentation and try and reproduce results. 
+
+## Problem 1 - Data
+We fill in missing values for eop_size_mm with 0s, convert categorical variables into character and ordered factors, and recode age_group and sex according to header information.
 
 ```{r}
 nature_data = read_excel("./data/p8105_mtp_data.xlsx", sheet = "this one", skip = 8) %>%
@@ -40,12 +42,12 @@ nature_data = read_excel("./data/p8105_mtp_data.xlsx", sheet = "this one", skip 
          eop_shape = as.factor(eop_shape),
          fhp_category = as.factor(fhp_category))
 
+#replace missing values in eop_size_mm column with 0s'
 nature_data[["eop_size_mm"]][is.na(nature_data[["eop_size_mm"]])] <- 0 
 
-nature_data %>% 
-  filter(as.numeric(age_group) > 1) %>% 
+nature_data = nature_data %>%
+  filter(as.numeric(age_group) > 1) %>% #filter out age_group 1
   mutate(age_group = recode(age_group,
-                            `1` = "<18 yrs",
                             `2` = "18-30 yrs", 
                             `3` = "31-40 yrs",
                             `4` = "41-50 yrs",
@@ -55,34 +57,36 @@ nature_data %>%
                             `8` = "60+ yrs")) %>%
   mutate(sex = recode(sex, 
                       `0` = "female",
-                      `1` = "male")) %>% 
-  group_by(age_group, sex) %>%
+                      `1` = "male")) 
+
+```
+
+Key variables in the dataset include sex and age, eop_size, eop_visibility_classification, eop_shape and fhp_size. There are `r nrow(nature_data)` participants included in the dataset. 
+
+```{r}
+  nature_data %>% 
+    group_by(age_group, sex) %>%
   summarize(n_obs = n()) %>%
 pivot_wider(
   names_from = age_group,
-  values_from = n_obs
-) 
+  values_from = n_obs)
 
-#check the recoding
 ```
 
-Key variables in the dataset include sex and age, EOP size, EOP visibility classification, EOP shape and FHP size. There are `r nrow(nature_data)`participants included in the dataset. The largest age groups are the 18-30 years old, and 60+ years old age groups. There are roughly equal number of males and females in each age group, and the number of individuals in each group is similar for the age groups between 31-80 years of age. There is one participant under 18. 
+The 18-30, and 60+ years old are the largest groups. There are roughly equal numbers of males and females. 
 
-Let's check to see that the categorical variables were correctly assigned. First, we will check age.
+We'll check categorical variables assignment.
 
 ```{r}
 
 nature_data_check = nature_data %>% 
   mutate(correct_age_category = 
-           case_when(age < 18 ~ 1,
-                     age >= 18 & age <= 30 ~ 2, 
-                     age >= 31 & age <= 40 ~ 3, 
-                     age >= 41 & age <= 50 ~ 4, 
-                     age >= 51 & age <= 60 ~ 5, 
-                     age >= 61 & age <= 70 ~ 6, 
-                     age >= 71 & age <= 80 ~ 7, 
-                     age >= 81 & age <= 90 ~ 8), 
-         age_check = ifelse(correct_age_category == age_group, "correct", "incorrect"), 
+           case_when(age >= 18 & age <= 30 ~ "18-30 yrs", 
+                     age >= 31 & age <= 40 ~ "31-40 yrs", 
+                     age >= 41 & age <= 50 ~ "41-50 yrs", 
+                     age >= 51 & age <= 60 ~ "51-60 yrs", 
+                     age >= 61 ~ "60+ yrs"), 
+         age_check = ifelse(correct_age_category == age_group, "consistent", "inconsistent"), 
          correct_size_category = 
            case_when(eop_size_mm < 5 ~ 0, 
                      eop_size_mm >= 5 & eop_size_mm < 10 ~ 1, 
@@ -90,103 +94,95 @@ nature_data_check = nature_data %>%
                      eop_size_mm >= 15 & eop_size_mm < 20 ~ 3,
                      eop_size_mm >= 20 & eop_size_mm <= 25 ~ 4,
                      eop_size_mm >= 25 ~ 5),
-         size_check = ifelse(correct_size_category == eop_size, "correct", "incorrect"),
-         correct_vis_classification = 
+         size_check = ifelse(correct_size_category == eop_size, "consistent", "inconsistent"),
+         correct_vis_class = 
            case_when(eop_size_mm == 0 ~ 0, 
                      eop_size_mm > 0 & eop_size_mm <= 5 ~ 1, 
                      eop_size_mm > 5 ~ 2), 
-         vis_check = ifelse(correct_vis_classification == eop_visibility_classification, "correct", "incorrect"),
+         vis_check = ifelse(correct_vis_class == eop_visibility_classification, "consistent", "inconsistent"),
          correct_fhp_category = 
            case_when(fhp_size_mm < 10 ~ 0,
                      fhp_size_mm >= 10 & fhp_size_mm < 20 ~ 1, 
-                     fhp_size_mm >= 21 & fhp_size_mm < 30 ~ 2, 
-                     fhp_size_mm >= 31 & fhp_size_mm < 40 ~ 3,
-                     fhp_size_mm >= 41 & fhp_size_mm < 50 ~ 4, 
-                     fhp_size_mm >= 51 & fhp_size_mm < 60 ~ 5, 
-                     fhp_size_mm >= 61 & fhp_size_mm < 70 ~ 6, 
-                     fhp_size_mm >= 71 & fhp_size_mm < 80 ~ 7, 
-                     fhp_size_mm >= 81 & fhp_size_mm < 90 ~ 8), 
-         fhp_check = ifelse(correct_fhp_category == fhp_category, "correct", "incorrect")
-         
-  ) 
+                     fhp_size_mm >= 20 & fhp_size_mm < 30 ~ 2, 
+                     fhp_size_mm >= 30 & fhp_size_mm < 40 ~ 3,
+                     fhp_size_mm >= 40 & fhp_size_mm < 50 ~ 4, 
+                     fhp_size_mm >= 50 & fhp_size_mm < 60 ~ 5, 
+                     fhp_size_mm >= 60 & fhp_size_mm < 70 ~ 6, 
+                     fhp_size_mm >= 70 & fhp_size_mm < 80 ~ 7, 
+                     fhp_size_mm >= 80 & fhp_size_mm < 90 ~ 8), 
+         fhp_check = ifelse(correct_fhp_category == fhp_category, "consistent", "inconsistent")
+         )
+ 
 
-#note to self, check age categories were made correctly 
+```
+
+
+```{r}
 
 nature_data_check %>% 
   select(age, age_group, correct_age_category, age_check) %>%
-  filter(age_check == "incorrect") 
+  filter(age_check == "inconsistent")
 
 ```
-18 participants were incorrectly categorized as belonging to the 71-80 yr age group, when they should have been in the 81-90 yr age group. One participant was incorrectly categorized as belonging to the < 18 yr age group, when they should have been categorized as belonging to the 41-50 age group.
 
-Next, let's check if the eop size categories were correctly assigned.
+Age groups were correctly assigned. 
 
-```{r}
-nature_size_check = nature_data_check %>% 
-  select(eop_size_mm, eop_size, correct_size_category, size_check) %>% 
-  filter(size_check == "incorrect")
-```
-
-`r nrow(nature_size_check)` participants had incorrect eop size categorizations. 
-
-Next, we will check visibility classification.
 
 ```{r}
-
 nature_data_check %>% 
-  select(eop_size_mm, eop_visibility_classification, correct_vis_classification, vis_check) %>% 
-  filter(vis_check == "incorrect") 
+  select(eop_size_mm, eop_size, correct_size_category, size_check) %>% 
+  filter(size_check == "inconsistent")
 ```
 
-88 participants had their visibility classification incorrectly assigned. 
+`r nature_data_check %>% select(eop_size_mm, eop_size, correct_size_category, size_check) %>% filter(size_check == "incorrect") %>% nrow()` participants had incorrect EOP size categorizations. Many participants were assigned EOP size 4 instead of 5. 
 
+```{r}
+nature_data_check %>% 
+  select(eop_size_mm, eop_visibility_classification, correct_vis_class, vis_check) %>% 
+  filter(vis_check == "inconsistent") 
+```
 
-## Problem 2 
+`r nature_data_check %>% 
+  select(eop_size_mm, eop_visibility_classification, correct_vis_class, vis_check) %>% 
+  filter(vis_check == "incorrect") %>% nrow()` participants had their visibility classification incorrectly assigned. Many participants were categorized as EOP size 0 instead of 1.
 
-For Figure 3, a boxplot might be more appropriate. We will re-categorize age groups 7 and 8 as 6, since we will be grouping observations from these three age groups. 
+```{r}
+nature_data_check %>% 
+  select(fhp_size_mm, fhp_category, correct_fhp_category, fhp_check) %>%
+  filter(fhp_check == "inconsistent") 
+```
+`r nature_data_check %>% select(fhp_size_mm, fhp_category, correct_fhp_category, fhp_check) %>% filter(fhp_check == "inconsistent") %>% nrow()` individuals had an incorrect FHP categorization (FHP category underestimated). 
+
+Number of data inconsistencies is minimal, so we'll leave this data in. 
+
+## Problem 2 - Visualization 
 
 ```{r}
 
-nature_data_age = nature_data %>% 
-  filter(as.numeric(age_group) > 1) %>% 
-  mutate(age_group = recode(age_group, 
-                            `2` = "18-30 years", 
-                            `3` = "31-40 years",
-                            `4` = "41-50 years", 
-                            `5` = "51-60 years",
-                            `6` = "60+ years",
-                            `7` = "60+ years", 
-                            `8` = "60+ years"), 
-         sex = recode(sex, 
-                      `0` = "female", 
-                      `1` = "male")
-         ) 
-
-figure_3 = ggplot(nature_data_age, aes(x = age_group, y = fhp_size_mm, fill = sex)) +
+figure_3 = ggplot(nature_data,
+                  aes(x = age_group, y = fhp_size_mm, fill = sex)) +
   geom_boxplot() + 
-  theme(axis.text.x = element_text(angle = 90)) 
-
+  theme(axis.text.x = element_text(angle = 90)) + 
+  labs(x = "age group", y = "FHP size (mm)")
 
 ```
 
-For Figure 4, we'd like to look at rates of enlarged EOP, instead of numbers with enlarged EOP. We will define the rate as number of enlarged EOP/number of individuals with an EOP size measurement.
-
 ```{r}
-#figure out how many individuals are in each age + sex group 
-
-nature_data_age_n = nature_data_age %>% 
-  filter(eop_size_mm > 0) %>% 
+#figure out how many participants are in each age + sex group
+nature_data_age_n = nature_data %>% 
   group_by(age_group, sex) %>% 
-  summarize(n_sex_age = n()) 
+  summarize(n_sex_age = n())
 
-nature_data_eop_n = nature_data_age %>% 
-  filter(as.numeric(eop_size) >= 3) %>%
+#figure out how many participants within each age+sex group have EEOP.
+nature_data_eop_n = nature_data %>% 
+  filter(eop_size_mm >= 10) %>%
   group_by(age_group, sex) %>% 
   summarize(n_eeop = n()) 
 
 nature_data_combined = 
   left_join(nature_data_age_n, nature_data_eop_n) %>% 
-  mutate(rate = n_eeop/n_sex_age)
+  mutate(rate = n_eeop/n_sex_age) %>% 
+  mutate(rate = round(rate, 2))
 
 figure_4 = 
   nature_data_combined %>% 
@@ -194,24 +190,18 @@ figure_4 =
   geom_line(aes(group = sex)) + 
   geom_point() + 
   theme(axis.text.x = element_text(angle = 90)) +
-  labs(x = "age group", y = "rate (# of eeops/# of individuals)")
+  labs(x = "age group", y = "EEOP rate")
 
 (figure_3 + figure_4)
 
 ```
 
-Now, we will work on creating a 2x5 panel figure which shows the association between FHP size + EOP size in each age and sex group.
+From the right panel, We can see a higher rate of EEOP in males. The highest rates of EEOP are in the youngest age group. If FHP is predictive of EEOP, we would expect the FHP size trend on the left to be similar to that of the EEOP rate trend, but this is not the case. While FHP sizes appear to be larger in males as compared to females, it isn't clear if the differences are significant. 
 
 ```{r}
-nature_data_age %>% 
-  filter(eop_size_mm > 0) %>% 
-  ggplot(aes(x = fhp_size_mm, y = eop_size_mm)) +
-  geom_point(size = .3) + 
-  labs() + 
-  facet_wrap(~age_group + sex, ncol = 5)
-  
-nature_data_age %>% 
-  filter(eop_size_mm > 0) %>% 
+
+nature_data %>% 
+  #filter(eop_size_mm > 0) %>% 
   ggplot(aes(x = fhp_size_mm, y = eop_size_mm)) +
   geom_point(size = .3) + 
   labs() + 
@@ -219,75 +209,74 @@ nature_data_age %>%
   
 ```
 
-## Problem 3
+There is no association between EOP size and FHP size in any of the age and sex groups. Plots don't provide evidence that FHP is predictive of EOP.
 
-We will determine sample size of each age group and compare this with the authors' calculations. 
+## Problem 3 - Reproducing reported results 
+
+We'll try reproducing some reported results.
 
 ```{r}
-nature_data_age %>% 
+nature_data %>% 
   count(age_group, name = "n_age_group")
 ```
 
-The sample sizes we determined are similar to the sample sizes determined by the authors. The authors underestimated number of participants for all age groups except for the 41-50 year age group which they accurately determined. 
-
-Let's calculate the mean and standard deviations for FHP size. 
+Sample sizes calculated are similar to those reported by the authors (differences within 7). 
 
 ```{r}
 nature_data %>% 
   group_by(sex) %>% 
   summarize(mean_fhp = mean(fhp_size_mm, na.rm = TRUE), 
-            sd_fhp = sd(fhp_size_mm, na.rm = TRUE))
+            sd_fhp = sd(fhp_size_mm, na.rm = TRUE)) %>%
+  mutate(mean_fhp = round(mean_fhp, digits = 2), 
+         sd_fhp = round(sd_fhp, digits = 2))
 
 ```
 
 Authors' calculation of mean and standard deviations for FHP size are consistent with our calculations. 
 
-The definition of EEOP is an EOP size greater than 10 mm. We can use the eop_size or eop_size_mm variables to determine if the authors prevalence calculation of 33% is accurate. 
+The definition of EEOP is an EOP size > 10 mm. We'll use the EOP size variable to check the EEOP prevalence calculation.
 
 ```{r}
-nature_data %>%
-  filter(as.numeric(eop_size) >= 2) %>% 
-  nrow()
 
-#why is there a discrepancy when using eop_size vs eop_size_mm? 
-
-eeop_n = nature_data_check %>%
-  filter(as.numeric(correct_size_category) >= 2) %>% 
-  nrow()
-
-nature_data %>%
+eeop_n = nature_data %>%
   filter(as.numeric(eop_size_mm) >= 10) %>% 
   nrow()
 
 study_pop_n = nrow(nature_data)
 
-study_pop_no_missing_n = nature_data %>% 
-  filter(eop_size_mm > 0) %>%
-  nrow()
-
-#what to do w missing values?
-
 ```
-The prevalence we calculate is `r eeop_n/study_pop_n` with missing values included, and `r eeop_n/study_pop_no_missing_n` if excluding missing values. If we include participants with a missing eop_size_mm value in our calculation, we get a similar prevalence as calculated by the authors. 
-
-Next, let's check if the FHP trends noted by the authors are consistent with our data. 
-
-Let's see how frequently FHP > 40 mm is observed in each age group.
+The prevalence we calculate is `r eeop_n/study_pop_n` is similar to the authors' calculations, but ~1% off. 
 
 ```{r}
-nature_data_age_n = nature_data_age %>%
+nature_data_age_n = nature_data %>%
   group_by(age_group) %>% 
   summarize(n_age_group = n())
 
-nature_data_fhp_over40_n = nature_data_age %>%
+nature_data_fhp_over40_n = nature_data %>%
   filter(fhp_size_mm > 40) %>%
   group_by(age_group) %>% 
   summarize(n_over40 = n())
   
 table = left_join(nature_data_age_n, nature_data_fhp_over40_n) %>% 
-  mutate(prevalence = n_over40/n_age_group*100)
+  mutate(prevalence = n_over40/n_age_group*100) %>% 
+  mutate(prevalence = round(prevalence, 2))
 
 print(table)
 
 ```
-The prevalence of FHP does appear to be highest in the 60+ years group.
+Prevalence of FHP over 40 mm is higher in older age groups and highest in the 60+ years group which is consistent with authors' observations. Our prevalence calculation for 60+ years is different by ~2%. 
+
+## Problem 4 - Discussion 
+
+There are issues with the data analyses and result presentation. Some categorizations did not match data header information. Figures were also misleading, especially Figure 4. We calculated similar results as reported in the paper, but couldn't get the exact calculations. 
+
+Based on this paper, we cannot conclude that cell phones are causing horn growth. We would need to see data on cell phone usage, and evidence that screen-based activity impacts FHP size. 
+
+### Word count
+```{r}
+wordcountaddin::text_stats("p8105_mtp_dtw2127.Rmd")
+```
+
+
+
+
