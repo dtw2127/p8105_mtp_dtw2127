@@ -28,7 +28,7 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ## Introduction 
 
-We examine the findings presented in the 2018 article on the relationship between posture and enlarged external occipital protuberances. We examine data consistency, results presentation and try and reproduce results. 
+We examine findings on the relationship between posture, as measured by degree of forward head protraction (FHP), and enlarged external occipital protuberances (EOP). We examine data consistency, results presentation and try and reproduce results. 
 
 ## Problem 1 - Data
 We fill in missing values for eop_size_mm with 0s, convert categorical variables into character and ordered factors, and recode age_group and sex according to header information.
@@ -61,7 +61,7 @@ nature_data = nature_data %>%
 
 ```
 
-Key variables in the dataset include sex and age, eop_size, eop_visibility_classification, eop_shape and fhp_size. There are `r nrow(nature_data)` participants included in the dataset. 
+Key variables include sex and age, eop_size, eop_visibility_classification, eop_shape and fhp_size. There are `r nrow(nature_data)` participants in the dataset. 
 
 ```{r}
   nature_data %>% 
@@ -73,9 +73,9 @@ pivot_wider(
 
 ```
 
-The 18-30, and 60+ years old are the largest groups. There are roughly equal numbers of males and females. 
+The 18-30, and 60+ years old are the largest age groups. There are roughly equal numbers of males and females. 
 
-We'll check categorical variables assignment.
+We'll check categorical variable assignment.
 
 ```{r}
 
@@ -92,7 +92,7 @@ nature_data_check = nature_data %>%
                      eop_size_mm >= 5 & eop_size_mm < 10 ~ 1, 
                      eop_size_mm >= 10 & eop_size_mm < 15 ~ 2, 
                      eop_size_mm >= 15 & eop_size_mm < 20 ~ 3,
-                     eop_size_mm >= 20 & eop_size_mm <= 25 ~ 4,
+                     eop_size_mm >= 20 & eop_size_mm < 25 ~ 4,
                      eop_size_mm >= 25 ~ 5),
          size_check = ifelse(correct_size_category == eop_size, "consistent", "inconsistent"),
          correct_vis_class = 
@@ -134,7 +134,7 @@ nature_data_check %>%
   filter(size_check == "inconsistent")
 ```
 
-`r nature_data_check %>% select(eop_size_mm, eop_size, correct_size_category, size_check) %>% filter(size_check == "incorrect") %>% nrow()` participants had incorrect EOP size categorizations. Many participants were assigned EOP size 4 instead of 5. 
+18 participants had incorrect EOP size categorizations. Many participants were assigned EOP size 4 instead of 5. 
 
 ```{r}
 nature_data_check %>% 
@@ -142,18 +142,16 @@ nature_data_check %>%
   filter(vis_check == "inconsistent") 
 ```
 
-`r nature_data_check %>% 
-  select(eop_size_mm, eop_visibility_classification, correct_vis_class, vis_check) %>% 
-  filter(vis_check == "incorrect") %>% nrow()` participants had their visibility classification incorrectly assigned. Many participants were categorized as EOP size 0 instead of 1.
+88 participants had visibility classification incorrectly assigned. Many participants were categorized as EOP size 0 instead of 1.
 
 ```{r}
 nature_data_check %>% 
   select(fhp_size_mm, fhp_category, correct_fhp_category, fhp_check) %>%
   filter(fhp_check == "inconsistent") 
 ```
-`r nature_data_check %>% select(fhp_size_mm, fhp_category, correct_fhp_category, fhp_check) %>% filter(fhp_check == "inconsistent") %>% nrow()` individuals had an incorrect FHP categorization (FHP category underestimated). 
+27 participants had an incorrect FHP categorization (FHP category underestimated). 
 
-Number of data inconsistencies is minimal, so we'll leave this data in. 
+Number of data inconsistencies is minimal so we'll leave this data in. 
 
 ## Problem 2 - Visualization 
 
@@ -196,20 +194,20 @@ figure_4 =
 
 ```
 
-From the right panel, We can see a higher rate of EEOP in males. The highest rates of EEOP are in the youngest age group. If FHP is predictive of EEOP, we would expect the FHP size trend on the left to be similar to that of the EEOP rate trend, but this is not the case. While FHP sizes appear to be larger in males as compared to females, it isn't clear if the differences are significant. 
+From the right panel, We can see a higher rate of EEOP in males. Highest EEOP rates are in the youngest age group. If FHP is predictive of EEOP, we would expect the FHP size trend on the left to be similar to the EEOP rate trend (ex. highest FHP size values for 18-30 years), but this isn't the case. FHP sizes appear to be larger in males than in females, but it isn't clear if differences are significant. 
 
 ```{r}
 
 nature_data %>% 
-  #filter(eop_size_mm > 0) %>% 
   ggplot(aes(x = fhp_size_mm, y = eop_size_mm)) +
   geom_point(size = .3) + 
   labs() + 
-  facet_grid(sex ~ age_group)
+  facet_grid(sex ~ age_group) + 
+  labs(x = "FHP size (mm)", y = "EOP size (mm)")
   
 ```
 
-There is no association between EOP size and FHP size in any of the age and sex groups. Plots don't provide evidence that FHP is predictive of EOP.
+There's no association between EOP size and FHP size in any of the age and sex groups. Plots don't provide evidence that FHP is predictive of EOP.
 
 ## Problem 3 - Reproducing reported results 
 
@@ -220,7 +218,7 @@ nature_data %>%
   count(age_group, name = "n_age_group")
 ```
 
-Sample sizes calculated are similar to those reported by the authors (differences within 7). 
+Sample sizes calculated are similar to authors' calculations (differences within 7). 
 
 ```{r}
 nature_data %>% 
@@ -245,7 +243,7 @@ eeop_n = nature_data %>%
 study_pop_n = nrow(nature_data)
 
 ```
-The prevalence we calculate is `r eeop_n/study_pop_n` is similar to the authors' calculations, but ~1% off. 
+The prevalence we calculate (`r round(eeop_n*100/study_pop_n, 2)`)% is similar to the authors' calculations, but about 1% off. 
 
 ```{r}
 nature_data_age_n = nature_data %>%
@@ -264,13 +262,13 @@ table = left_join(nature_data_age_n, nature_data_fhp_over40_n) %>%
 print(table)
 
 ```
-Prevalence of FHP over 40 mm is higher in older age groups and highest in the 60+ years group which is consistent with authors' observations. Our prevalence calculation for 60+ years is different by ~2%. 
+Prevalence of FHP over 40 mm is higher in older age groups and highest in the 60+ years group which is consistent with authors' observations. Our prevalence calculation for 60+ years is different by about 2%. 
 
 ## Problem 4 - Discussion 
 
 There are issues with the data analyses and result presentation. Some categorizations did not match data header information. Figures were also misleading, especially Figure 4. We calculated similar results as reported in the paper, but couldn't get the exact calculations. 
 
-Based on this paper, we cannot conclude that cell phones are causing horn growth. We would need to see data on cell phone usage, and evidence that screen-based activity impacts FHP size. 
+We cannot conclude that cell phones are causing horn growth. We'd need to see data on cell phone usage, and evidence that screen-based activity impacts FHP size. A regression analysis to look at the association between FHP and EOP, adjusting for potential confounders would be useful.
 
 ### Word count
 ```{r}
